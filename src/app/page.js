@@ -12,18 +12,15 @@ export default function MemoApp() {
   const [input, setInput] = useState("");
   const [activeTab, setActiveTab] = useState('write');
   const [selectedColor, setSelectedColor] = useState({ 
-    name: '穏やか', 
-    bg: 'bg-blue-50', 
-    border: 'border-blue-200',
-    text: 'text-blue-500'
+    bg: 'bg-blue-50', border: 'border-blue-200'
   });
 
   const colors = [
-    { name: '穏やか', bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-500' },
-    { name: '仕事', bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-500' },
-    { name: '人間関係', bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-500' },
-    { name: '自分', bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-500' },
-    { name: 'ネタ', bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-500' },
+    { bg: 'bg-blue-50', border: 'border-blue-200' },
+    { bg: 'bg-red-50', border: 'border-red-200' },
+    { bg: 'bg-yellow-50', border: 'border-yellow-200' },
+    { bg: 'bg-green-50', border: 'border-green-200' },
+    { bg: 'bg-purple-50', border: 'border-purple-200' },
   ];
 
   const fetchMemos = async () => {
@@ -35,12 +32,16 @@ export default function MemoApp() {
 
   const addMemo = async () => {
     if (!input.trim()) return;
+    // エラー回避のため、確実に存在する'text'と'color'のみを送信
     const { error } = await supabase.from('memos').insert([{
       text: input,
-      color: selectedColor.bg,
-      category: selectedColor.name // カテゴリ名も保存
+      color: selectedColor.bg
     }]);
-    if (!error) {
+    
+    if (error) {
+      console.error(error);
+      alert("保存に失敗しました。");
+    } else {
       setInput("");
       fetchMemos();
     }
@@ -49,99 +50,90 @@ export default function MemoApp() {
   const todayCount = memos.filter(m => new Date(m.date).toDateString() === new Date().toDateString()).length;
 
   return (
-    <div className="min-h-screen bg-white text-gray-600 font-sans pb-28">
-      {/* --- ロゴ・ヘッダー --- */}
-      <header className="pt-10 pb-6 text-center border-b border-gray-50">
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-2xl">🌿</span>
-          <h1 className="text-3xl font-bold tracking-tighter text-gray-800">Ochiba</h1>
-          <p className="text-[10px] text-emerald-500 font-bold tracking-widest">気づきの落ち葉を、集めよう。</p>
-          <div className="mt-2 px-3 py-1 bg-gray-100 rounded-full text-[10px] text-gray-400">
-            ● データは自動保存されます
-          </div>
-        </div>
+    <div className="min-h-screen bg-white text-gray-600 font-sans pb-10">
+      
+      {/* --- ヘッダーエリア --- */}
+      <header className="pt-6 pb-2 text-center">
+        <h1 className="text-2xl font-bold tracking-tight text-gray-800">memo</h1>
+        <p className="text-[10px] text-emerald-500 font-bold tracking-widest mt-1">
+          ここに好きな言葉をいれる
+        </p>
+
+        {/* --- タブメニュー (参考元と同じ位置) --- */}
+        <nav className="flex justify-center gap-1 mt-4">
+          <button onClick={() => setActiveTab('write')} className={`p-2 px-6 rounded-t-lg transition-all ${activeTab === 'write' ? 'bg-gray-100' : 'opacity-30'}`}>📍</button>
+          <button onClick={() => setActiveTab('timeline')} className={`p-2 px-6 rounded-t-lg transition-all ${activeTab === 'timeline' ? 'bg-gray-100' : 'opacity-30'}`}>📅</button>
+          <button className="opacity-30 p-2 px-6">📊</button>
+          <button className="opacity-30 p-2 px-6">🔖</button>
+        </nav>
+        <div className="border-b border-gray-100 mx-auto max-w-2xl"></div>
       </header>
 
-      {/* --- メインコンテンツ --- */}
-      <main className="max-w-2xl mx-auto px-4">
+      <main className="max-w-xl mx-auto px-4">
         
         {activeTab === 'write' && (
-          <div className="mt-8 animate-in fade-in slide-in-from-top-2 duration-700">
-            {/* 統計エリア */}
-            <div className="bg-white border border-gray-100 rounded-[32px] p-8 flex items-center justify-around mb-8 shadow-sm">
-              <div className="text-center">
-                <span className="text-4xl font-light text-gray-800">{todayCount}</span>
-                <p className="text-[10px] text-gray-400 mt-1">今日の落ち葉</p>
-                <p className="text-[10px] text-emerald-500">累計 {memos.length}枚 🍃</p>
-              </div>
+          <div className="mt-4">
+            {/* 統計エリア (余白を削減) */}
+            <div className="bg-white border border-gray-100 rounded-[24px] py-4 flex flex-col items-center mb-4 shadow-sm">
+              <span className="text-3xl font-light text-gray-800">{todayCount}</span>
+              <p className="text-[9px] text-gray-400">今日のメモ</p>
+              <p className="text-[9px] text-emerald-500">累計 {memos.length}枚 🍃</p>
             </div>
 
-            {/* タグ選択 */}
-            <div className="flex gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
-              {colors.map((c) => (
+            {/* タグ選択 (文字なし・常時着色) */}
+            <div className="flex gap-2 mb-3 justify-center">
+              {colors.map((c, index) => (
                 <button
-                  key={c.name}
+                  key={index}
                   onClick={() => setSelectedColor(c)}
-                  className={`px-4 py-1.5 rounded-full border text-xs transition-all whitespace-nowrap
-                    ${selectedColor.name === c.name ? `${c.border} ${c.bg} ${c.text}` : 'border-gray-200 text-gray-400'}`}
-                >
-                  {c.name}
-                </button>
+                  className={`w-10 h-6 rounded-full border transition-all 
+                    ${c.bg} ${c.border} 
+                    ${selectedColor.bg === c.bg ? 'scale-110 ring-2 ring-offset-1 ring-gray-100' : 'opacity-60'}`}
+                />
               ))}
-              <button className="w-8 h-8 rounded-full border border-gray-200 text-gray-300 flex items-center justify-center text-sm">+</button>
+              <button className="w-6 h-6 rounded-full border border-gray-100 text-gray-300 flex items-center justify-center text-xs">+</button>
             </div>
 
             {/* 入力欄 */}
-            <div className={`border-2 rounded-2xl p-4 transition-colors duration-500 ${selectedColor.border}`}>
+            <div className={`border rounded-xl p-3 transition-colors duration-500 ${selectedColor.border}`}>
               <textarea
-                className="w-full h-32 border-none focus:ring-0 resize-none text-sm placeholder-gray-300"
+                className="w-full h-24 border-none focus:ring-0 resize-none text-sm placeholder-gray-200"
                 placeholder="今の気づきを..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
               />
             </div>
 
+            {/* 追加ボタン (入力があれば濃く、なければ薄く) */}
             <button 
               onClick={addMemo}
-              className="w-full mt-6 py-4 bg-[#c8e6d9] hover:bg-[#b8d6c9] text-white rounded-2xl font-bold transition-all shadow-sm"
+              disabled={!input.trim()}
+              className={`w-full mt-3 py-3 rounded-xl font-bold transition-all shadow-sm text-white
+                ${input.trim() ? 'bg-[#98c9b6]' : 'bg-[#e2ede8]'}`}
             >
-              落ち葉を追加する
+              メモを追加する
             </button>
           </div>
         )}
 
+        {/* --- タイムライン --- */}
         {activeTab === 'timeline' && (
-          <div className="mt-8 space-y-4 animate-in fade-in duration-500">
-             <div className="text-[10px] text-gray-400 border-b border-dashed border-gray-200 pb-2 mb-4">
-               すべて ({memos.length}枚)
+          <div className="mt-4 space-y-3">
+             <div className="text-[10px] text-gray-400 border-b border-dashed border-gray-100 pb-1 mb-2">
+               すべて ({memos.length})
              </div>
              {memos.map((memo) => (
-               <div key={memo.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm relative group">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-emerald-400 text-xs">🌱</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${memo.color} border border-black/5`}>
-                      {memo.category || '自分'}
-                    </span>
-                  </div>
+               <div key={memo.id} className="bg-white border border-gray-50 rounded-xl p-4 shadow-sm relative">
+                  <div className={`w-2 h-2 rounded-full ${memo.color} mb-2`} />
                   <p className="text-sm text-gray-700 leading-relaxed">{memo.text}</p>
-                  <div className="mt-3 text-[9px] text-gray-300 flex justify-between">
-                    <span>{new Date(memo.date).toLocaleString()}</span>
+                  <div className="mt-2 text-[8px] text-gray-300">
+                    {new Date(memo.date).toLocaleString()}
                   </div>
                </div>
              ))}
           </div>
         )}
       </main>
-
-      {/* --- ナビゲーションバー --- */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-6 py-4 flex justify-around items-center z-50">
-        <button onClick={() => setActiveTab('write')} className={`p-2 transition-all ${activeTab === 'write' ? 'bg-gray-100 rounded-lg' : 'opacity-30'}`}>📍</button>
-        <button onClick={() => setActiveTab('timeline')} className={`p-2 transition-all ${activeTab === 'timeline' ? 'bg-gray-100 rounded-lg' : 'opacity-30'}`}>📅</button>
-        <button className="opacity-30 p-2 text-xl">📊</button>
-        <button className="opacity-30 p-2 text-xl">🔖</button>
-        <button className="opacity-30 p-2 text-xl">➕</button>
-        <button className="opacity-30 p-2 text-xl">⚙️</button>
-      </nav>
     </div>
   );
 }
