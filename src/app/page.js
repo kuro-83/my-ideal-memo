@@ -131,8 +131,8 @@ export default function MemoApp() {
                const shouldShowReadMore = memo.text.length > 100 || memo.text.split('\n').length > 3;
 
                return (
-                 <div key={memo.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm relative flex flex-col overflow-hidden">
-                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${memo.color || 'bg-blue-300'}`} />
+                 <div key={memo.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm relative flex flex-col ">
+                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl ${memo.color || 'bg-blue-300'}`} />
                     {memo.is_pinned && <div className="absolute top-0 right-0 p-2 text-emerald-500"><Icon type="pin" className="w-3 h-3 fill-current" /></div>}
 
                     {/* 本文エリア：編集モードと通常表示を切り替え */}
@@ -182,8 +182,8 @@ export default function MemoApp() {
                             <Icon type="more" className="w-4 h-4" />
                           </button>
                           {menuOpenId === memo.id && (
-                            /* mt-2をmt-[-40px]などにせず、メニューがカードの前面に浮くように調整 */
-                            <div className="absolute right-0 bottom-full mb-2 w-28 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-1 animate-in fade-in zoom-in-95">
+                            /* top-full mt-2 でアイコンのすぐ下に出るように変更。z-50で最前面へ */
+                            <div className="absolute right-0 top-full mt-2 w-28 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-1 animate-in fade-in zoom-in-95">
                               {/* 編集ボタンを追加 */}
                               <button onClick={() => {setEditId(memo.id); setEditInput(memo.text);}} className="w-full text-left px-4 py-2.5 text-[11px] font-bold hover:bg-gray-50 text-gray-600 border-b border-gray-50">
                                 編集
