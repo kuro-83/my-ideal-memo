@@ -28,6 +28,8 @@ export default function MemoApp() {
   const [writeInput, setWriteInput] = useState("");
   const [gardenInput, setGardenInput] = useState("");
   const [gardenTitle, setGardenTitle] = useState("");
+  const [editId, setEditId] = useState(null); // どのメモを編集しているか記録
+  const [editInput, setEditInput] = useState(""); // 編集中の文字を記録
   const [selectedColor, setSelectedColor] = useState({ bg: 'bg-blue-50', border: 'border-blue-200', bar: 'bg-blue-300' });
 
   useEffect(() => {
@@ -66,6 +68,13 @@ export default function MemoApp() {
   const togglePin = async (memo) => {
     await supabase.from('memos').update({ is_pinned: !memo.is_pinned }).eq('id', memo.id);
     fetchMemos();
+  };
+
+  // 編集した内容を保存する処理
+  const saveEdit = async (id) => {
+    await supabase.from('memos').update({ text: editInput }).eq('id', id);
+    setEditId(null); // 編集モードを終了
+    fetchMemos(); // 最新のデータを読み込む
   };
 
   const normalMemos = memos.filter(m => m.category === 'normal');
@@ -126,16 +135,32 @@ export default function MemoApp() {
                     <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${memo.color || 'bg-blue-300'}`} />
                     {memo.is_pinned && <div className="absolute top-0 right-0 p-2 text-emerald-500"><Icon type="pin" className="w-3 h-3 fill-current" /></div>}
 
-                    {/* pb-4 を追加して本文下の余白を確保 */}
+                    {/* 本文エリア：編集モードと通常表示を切り替え */}
                     <div className="flex-grow pb-4">
-                        <p className={`text-sm text-gray-700 leading-relaxed whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
-                          {memo.text}
-                        </p>
-                        {shouldShowReadMore && (
-                          <button onClick={() => {const n=new Set(expandedIds); n.has(memo.id)?n.delete(memo.id):n.add(memo.id); setExpandedIds(n);}} className="text-xs text-emerald-500 font-bold mt-1 hover:underline">
-                            {isExpanded ? '閉じる' : '続きを読む'}
-                          </button>
-                        )}
+                      {editId === memo.id ? (
+                        <div className="mt-2">
+                          <textarea 
+                            className="w-full bg-gray-50 p-3 rounded-xl text-sm focus:ring-0 outline-none border border-gray-100 h-24" 
+                            value={editInput} 
+                            onChange={(e) => setEditInput(e.target.value)} 
+                          />
+                          <div className="flex justify-end gap-3 mt-2">
+                            <button onClick={() => setEditId(null)} className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Cancel</button>
+                            <button onClick={() => saveEdit(memo.id)} className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Save</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className={`text-sm text-gray-700 leading-relaxed whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
+                            {memo.text}
+                          </p>
+                          {shouldShowReadMore && (
+                            <button onClick={() => {const n=new Set(expandedIds); n.has(memo.id)?n.delete(memo.id):n.add(memo.id); setExpandedIds(n);}} className="text-xs text-emerald-500 font-bold mt-1 hover:underline">
+                              {isExpanded ? '閉じる' : '続きを読む'}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* items-center に変更してアイコンの垂直位置を中央に */}
@@ -157,8 +182,15 @@ export default function MemoApp() {
                             <Icon type="more" className="w-4 h-4" />
                           </button>
                           {menuOpenId === memo.id && (
-                            <div className="absolute right-0 top-full mt-2 w-28 bg-white border border-gray-100 rounded-xl shadow-xl z-30 py-1 animate-in fade-in zoom-in-95">
-                              <button onClick={() => deleteMemo(memo.id)} className="w-full text-left px-4 py-2.5 text-[11px] font-bold hover:bg-red-50 text-red-400">削除</button>
+                            /* mt-2をmt-[-40px]などにせず、メニューがカードの前面に浮くように調整 */
+                            <div className="absolute right-0 bottom-full mb-2 w-28 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-1 animate-in fade-in zoom-in-95">
+                              {/* 編集ボタンを追加 */}
+                              <button onClick={() => {setEditId(memo.id); setEditInput(memo.text);}} className="w-full text-left px-4 py-2.5 text-[11px] font-bold hover:bg-gray-50 text-gray-600 border-b border-gray-50">
+                                編集
+                              </button>
+                              <button onClick={() => deleteMemo(memo.id)} className="w-full text-left px-4 py-2.5 text-[11px] font-bold hover:bg-red-50 text-red-400">
+                                削除
+                              </button>
                             </div>
                           )}
                         </div>
