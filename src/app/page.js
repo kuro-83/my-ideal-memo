@@ -7,7 +7,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-// --- アイコン ---
+// --- アイコンコンポーネント ---
 const Icon = ({ type, className = "w-5 h-5" }) => {
   const style = { strokeWidth: "2" };
   if (type === 'write') return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" {...style} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>;
@@ -28,8 +28,6 @@ export default function MemoApp() {
   const [writeInput, setWriteInput] = useState("");
   const [gardenInput, setGardenInput] = useState("");
   const [gardenTitle, setGardenTitle] = useState("");
-  const [editId, setEditId] = useState(null);
-  const [editInput, setEditInput] = useState("");
   const [selectedColor, setSelectedColor] = useState({ bg: 'bg-blue-50', border: 'border-blue-200', bar: 'bg-blue-300' });
 
   useEffect(() => {
@@ -76,6 +74,7 @@ export default function MemoApp() {
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-600 font-sans pb-24">
+      {/* --- ヘッダー・ナビ --- */}
       <header className="pt-8 text-center bg-white border-b border-gray-100 sticky top-0 z-20">
         <h1 className="text-2xl font-bold tracking-tight text-gray-800">memo</h1>
         <p className="text-[10px] text-emerald-500 font-bold tracking-[0.2em] mt-1 uppercase">Stay and reflect</p>
@@ -89,12 +88,12 @@ export default function MemoApp() {
       </header>
 
       <main className="max-w-xl mx-auto px-4 mt-6">
+        {/* --- 📝 書くタブ --- */}
         {activeTab === 'write' && (
           <div className="animate-in fade-in">
             <div className="bg-white border border-gray-100 rounded-[32px] py-6 flex flex-col items-center mb-6 shadow-sm">
               <span className="text-4xl font-light text-gray-800">{todayMemos.length}</span>
               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Today's Memo</p>
-              {/* トータル表示を復活 */}
               <p className="text-[10px] text-emerald-500 mt-1 font-bold">累計 {normalMemos.length}枚🍃</p>
             </div>
             <div className="flex gap-2 mb-4">
@@ -115,6 +114,7 @@ export default function MemoApp() {
           </div>
         )}
 
+        {/* --- 📜 タイムラインタブ --- */}
         {activeTab === 'timeline' && (
           <div className="space-y-4 animate-in fade-in">
              {normalMemos.map((memo) => {
@@ -122,12 +122,12 @@ export default function MemoApp() {
                const shouldShowReadMore = memo.text.length > 100 || memo.text.split('\n').length > 3;
 
                return (
-                 /* overflow-hidden を追加してカラーバーのはみ出しを防止 */
                  <div key={memo.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm relative flex flex-col overflow-hidden">
                     <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${memo.color || 'bg-blue-300'}`} />
                     {memo.is_pinned && <div className="absolute top-0 right-0 p-2 text-emerald-500"><Icon type="pin" className="w-3 h-3 fill-current" /></div>}
 
-                    <div className="flex-grow">
+                    {/* pb-4 を追加して本文下の余白を確保 */}
+                    <div className="flex-grow pb-4">
                         <p className={`text-sm text-gray-700 leading-relaxed whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
                           {memo.text}
                         </p>
@@ -138,18 +138,26 @@ export default function MemoApp() {
                         )}
                     </div>
 
-                    {/* mt-1 pt-1 にして余白をさらに削減 */}
-                    <div className="flex justify-between items-end mt-1 pt-1 border-t border-gray-50">
+                    {/* items-center に変更してアイコンの垂直位置を中央に */}
+                    <div className="flex justify-between items-center mt-1 pt-2 border-t border-gray-50">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-gray-300 font-bold tracking-wider">{new Date(memo.date).toLocaleString()}</span>
-                        <button onClick={() => navigator.clipboard.writeText(memo.text)} className="text-gray-200 hover:text-emerald-500 transition-colors"><Icon type="copy" className="w-3.5 h-3.5" /></button>
+                        <span className="text-[10px] text-gray-300 font-bold tracking-wider">
+                          {new Date(memo.date).toLocaleDateString()} {new Date(memo.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </span>
+                        <button onClick={() => navigator.clipboard.writeText(memo.text)} className="text-gray-200 hover:text-emerald-500 transition-colors">
+                          <Icon type="copy" className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                       <div className="flex items-center gap-4 relative">
-                        <button onClick={() => togglePin(memo)} className={`${memo.is_pinned ? 'text-emerald-500' : 'text-gray-200'} hover:text-emerald-500`}><Icon type="pin" className="w-4 h-4" /></button>
+                        <button onClick={() => togglePin(memo)} className={`${memo.is_pinned ? 'text-emerald-500' : 'text-gray-200'} hover:text-emerald-500`}>
+                          <Icon type="pin" className="w-4 h-4" />
+                        </button>
                         <div className="relative">
-                          <button onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === memo.id ? null : memo.id); }} className="text-gray-200 hover:text-gray-400"><Icon type="more" className="w-4 h-4" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === memo.id ? null : memo.id); }} className="text-gray-200 hover:text-gray-400">
+                            <Icon type="more" className="w-4 h-4" />
+                          </button>
                           {menuOpenId === memo.id && (
-                            <div className="absolute right-0 top-full mt-1 w-28 bg-white border border-gray-100 rounded-xl shadow-xl z-30 py-1 animate-in fade-in zoom-in-95">
+                            <div className="absolute right-0 top-full mt-2 w-28 bg-white border border-gray-100 rounded-xl shadow-xl z-30 py-1 animate-in fade-in zoom-in-95">
                               <button onClick={() => deleteMemo(memo.id)} className="w-full text-left px-4 py-2.5 text-[11px] font-bold hover:bg-red-50 text-red-400">削除</button>
                             </div>
                           )}
@@ -162,7 +170,7 @@ export default function MemoApp() {
           </div>
         )}
 
-        {/* 育てるタブ・設定タブの内容は前回のものを維持 */}
+        {/* --- 🌿 育てるタブ --- */}
         {activeTab === 'garden' && (
           <div className="animate-in fade-in">
             <div className="mb-8 bg-white border border-gray-100 rounded-[24px] p-6 shadow-sm">
@@ -174,10 +182,19 @@ export default function MemoApp() {
               {gardenMemos.map((memo) => (
                 <div key={memo.id} className="bg-white border-l-4 border-emerald-300 rounded-xl p-5 shadow-sm">
                   <h3 className="font-bold text-gray-800">{memo.title || "Untitled"}</h3>
-                  <p className="text-sm text-gray-500 mt-1">{memo.text}</p>
+                  <p className="text-sm text-gray-500 mt-1 whitespace-pre-wrap">{memo.text}</p>
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* --- ⚙️ 設定タブ --- */}
+        {activeTab === 'settings' && (
+          <div className="animate-in fade-in space-y-4 text-center py-10">
+            <Icon type="settings" className="w-12 h-12 mx-auto text-gray-200 mb-4" />
+            <p className="text-sm text-gray-400 font-bold">Settings Area</p>
+            <p className="text-xs text-gray-300 px-10">色のカスタマイズやアカウント設定をここで行えるようにする予定です。</p>
           </div>
         )}
       </main>
