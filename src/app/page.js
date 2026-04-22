@@ -17,6 +17,7 @@ const Icon = ({ type, className = "w-5 h-5" }) => {
   if (type === 'pin') return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" {...style} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>;
   if (type === 'copy') return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" {...style} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>;
   if (type === 'more') return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" {...style} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>;
+  if (type === 'search') return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" {...style} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
   return null;
 };
 
@@ -31,6 +32,15 @@ export default function MemoApp() {
   const [editId, setEditId] = useState(null); // どのメモを編集しているか記録
   const [editInput, setEditInput] = useState(""); // 編集中の文字を記録
   const [selectedColor, setSelectedColor] = useState({ bg: 'bg-blue-50', border: 'border-blue-200', bar: 'bg-blue-300' });
+  // --- タグ機能用のState ---
+  const [availableTags, setAvailableTags] = useState([
+    { id: 1, name: '仕事', isHidden: false },
+    { id: 2, name: 'アイデア', isHidden: false },
+    { id: 3, name: '秘密', isHidden: true }, // タイムラインに流さないタグ
+  ]);
+  const [selectedTags, setSelectedTags] = useState([]); // 書くタブで選択中のタグ
+  const [isTagMenuOpen, setIsTagMenuOpen] = useState(false); // タグ追加メニューの開閉
+  const [searchFilterTag, setSearchFilterTag] = useState(null); // 検索タブで絞り込み中のタグ
 
   useEffect(() => {
     const closeMenu = () => setMenuOpenId(null);
@@ -53,9 +63,10 @@ export default function MemoApp() {
       text, 
       color: isGarden ? 'bg-emerald-300' : selectedColor.bar, 
       category: type,
-      title: isGarden ? gardenTitle : null 
+      title: isGarden ? gardenTitle : null,
+      tags: selectedTags.map(t => t.name) // タグの名前だけを配列にして保存
     }]);
-    if (!error) { setWriteInput(""); setGardenInput(""); setGardenTitle(""); fetchMemos(); }
+    if (!error) { setWriteInput(""); setGardenInput(""); setGardenTitle(""); setSelectedTags([]); fetchMemos(); }
   };
 
   const deleteMemo = async (id) => {
@@ -81,6 +92,18 @@ export default function MemoApp() {
   const gardenMemos = memos.filter(m => m.category === 'seed');
   const todayMemos = normalMemos.filter(m => new Date(m.date).toDateString() === new Date().toDateString());
 
+  // タイムライン用：非表示設定(isHidden: true)のタグが含まれているメモを除外
+  const hiddenTagNames = availableTags.filter(t => t.isHidden).map(t => t.name);
+  const timelineMemos = normalMemos.filter(memo => {
+    if (!memo.tags || memo.tags.length === 0) return true;
+    return !memo.tags.some(tag => hiddenTagNames.includes(tag));
+  });
+
+  // 検索タブ用：フィルターが選ばれていれば絞り込み、選ばれていなければ全て表示
+  const searchMemos = searchFilterTag 
+    ? normalMemos.filter(memo => memo.tags && memo.tags.includes(searchFilterTag))
+    : normalMemos;
+
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-600 font-sans pb-24">
       {/* --- ヘッダー・ナビ --- */}
@@ -88,7 +111,7 @@ export default function MemoApp() {
         <h1 className="text-2xl font-bold tracking-tight text-gray-800">memo</h1>
         <p className="text-[10px] text-emerald-500 font-bold tracking-[0.2em] mt-1 uppercase">Stay and reflect</p>
         <nav className="flex justify-center gap-1 mt-6">
-          {['write', 'timeline', 'garden', 'settings'].map((tab) => (
+          {['write', 'timeline', 'search', 'garden', 'settings'].map((tab) => (
             <button key={tab} onClick={(e) => { e.stopPropagation(); setActiveTab(tab); }} className={`p-3 px-6 rounded-t-xl transition-all ${activeTab === tab ? 'bg-[#f2f2f2] text-gray-800' : 'text-gray-200 hover:text-gray-400'}`}>
               <Icon type={tab} />
             </button>
@@ -116,6 +139,40 @@ export default function MemoApp() {
                 <button key={index} onClick={() => setSelectedColor(c)} className={`w-10 h-6 rounded-full border ${c.bg} ${c.border} ${selectedColor.bar === c.bar ? 'ring-2 ring-offset-2 ring-gray-100 scale-110' : 'opacity-40 hover:opacity-100'}`} />
               ))}
             </div>
+            {/* カラー選択のすぐ下（テキストエリアの上）に追加 */}
+            <div className="flex items-center flex-wrap gap-2 mb-4 relative z-10">
+              {/* 選択済みのタグ */}
+              {selectedTags.map(tag => (
+                <span key={tag.id} className="text-[11px] px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg font-bold flex items-center gap-1">
+                  {tag.name}
+                  <button onClick={() => setSelectedTags(selectedTags.filter(t => t.id !== tag.id))} className="text-gray-400 hover:text-gray-600 ml-1">×</button>
+                </span>
+              ))}
+              {/* ＋ボタン */}
+              <button onClick={() => setIsTagMenuOpen(!isTagMenuOpen)} className="text-[11px] px-3 py-1.5 border border-dashed border-gray-300 text-gray-400 hover:text-gray-600 hover:border-gray-400 rounded-lg font-bold transition-colors">
+                ＋
+              </button>
+              
+              {/* タグ選択メニュー（ポップアップ） */}
+              {isTagMenuOpen && (
+                <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl py-2 animate-in fade-in zoom-in-95">
+                  {availableTags.filter(t => !selectedTags.some(st => st.id === t.id)).length === 0 ? (
+                    <p className="text-xs text-center text-gray-400 py-2">追加できるタグがありません</p>
+                  ) : (
+                    availableTags.filter(t => !selectedTags.some(st => st.id === t.id)).map(tag => (
+                      <button 
+                        key={tag.id} 
+                        onClick={() => { setSelectedTags([...selectedTags, tag]); setIsTagMenuOpen(false); }} 
+                        className="w-full text-left px-4 py-2.5 text-[11px] font-bold text-gray-600 hover:bg-gray-50 flex items-center justify-between"
+                      >
+                        {tag.name}
+                        {tag.isHidden && <span className="text-[9px] text-gray-400 font-normal border border-gray-200 px-1.5 py-0.5 rounded">非表示</span>}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
             <div className={`border-2 rounded-2xl p-4 bg-white shadow-sm transition-all ${selectedColor.border}`}>
               <textarea className="w-full h-40 border-none focus:ring-0 outline-none resize-none text-base placeholder-gray-200 bg-transparent" placeholder="今の気づきを..." value={writeInput} onChange={(e) => setWriteInput(e.target.value)} />
             </div>
@@ -126,7 +183,7 @@ export default function MemoApp() {
         {/* --- 📜 タイムラインタブ --- */}
         {activeTab === 'timeline' && (
           <div className="space-y-4 animate-in fade-in">
-             {normalMemos.map((memo) => {
+             {timelineMemos.map((memo) => {
                const isExpanded = expandedIds.has(memo.id);
                const shouldShowReadMore = memo.text.length > 100 || memo.text.split('\n').length > 3;
 
@@ -199,6 +256,50 @@ export default function MemoApp() {
                  </div>
                );
              })}
+          </div>
+        )}
+
+        {/* --- 🔍 検索タブ --- */}
+        {activeTab === 'search' && (
+          <div className="animate-in fade-in">
+            {/* タグ絞り込みエリア */}
+            <div className="flex flex-wrap gap-2 mb-6 pb-4 border-b border-gray-100">
+              <button 
+                onClick={() => setSearchFilterTag(null)} 
+                className={`text-[11px] px-4 py-1.5 rounded-full font-bold transition-all ${!searchFilterTag ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+              >
+                すべて
+              </button>
+              {availableTags.map(tag => (
+                <button 
+                  key={tag.id} 
+                  onClick={() => setSearchFilterTag(tag.name)} 
+                  className={`text-[11px] px-4 py-1.5 rounded-full font-bold transition-all flex items-center gap-1 ${searchFilterTag === tag.name ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                >
+                  {tag.name}
+                  {tag.isHidden && <span className="opacity-50 text-[9px]">🔒</span>}
+                </button>
+              ))}
+            </div>
+
+            {/* メモ一覧（カード部分はタイムラインと同じ） */}
+            <div className="space-y-4">
+              {searchMemos.map((memo) => (
+                <div key={memo.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm relative flex flex-col">
+                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl ${memo.color || 'bg-blue-300'}`} />
+                  <div className="flex-grow pb-2">
+                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{memo.text}</p>
+                  </div>
+                  {/* 付与されているタグの表示 */}
+                  {memo.tags && memo.tags.length > 0 && (
+                    <div className="flex gap-1 mt-2">
+                      {memo.tags.map(t => <span key={t} className="text-[9px] bg-gray-50 text-gray-400 px-2 py-0.5 rounded border border-gray-100">{t}</span>)}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {searchMemos.length === 0 && <p className="text-center text-xs text-gray-400 mt-10">メモがありません</p>}
+            </div>
           </div>
         )}
 
