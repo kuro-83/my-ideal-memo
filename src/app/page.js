@@ -18,6 +18,7 @@ const Icon = ({ type, className = "w-5 h-5" }) => {
   if (type === 'copy') return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" {...style} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>;
   if (type === 'more') return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" {...style} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>;
   if (type === 'search') return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" {...style} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
+  if (type === 'tag') return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>;
   return null;
 };
 
@@ -26,24 +27,27 @@ export default function MemoApp() {
   const [activeTab, setActiveTab] = useState('write');
   const [expandedIds, setExpandedIds] = useState(new Set());
   const [menuOpenId, setMenuOpenId] = useState(null);
+  const [tagMenuOpenId, setTagMenuOpenId] = useState(null); // どのメモのタグメニューを開いているか記録
   const [writeInput, setWriteInput] = useState("");
   const [gardenInput, setGardenInput] = useState("");
   const [gardenTitle, setGardenTitle] = useState("");
-  const [editId, setEditId] = useState(null); // どのメモを編集しているか記録
-  const [editInput, setEditInput] = useState(""); // 編集中の文字を記録
+  const [editId, setEditId] = useState(null); 
+  const [editInput, setEditInput] = useState(""); 
   const [selectedColor, setSelectedColor] = useState({ bg: 'bg-blue-50', border: 'border-blue-200', bar: 'bg-blue-300' });
-  // --- タグ機能用のState ---
   const [availableTags, setAvailableTags] = useState([
     { id: 1, name: '仕事', isHidden: false },
     { id: 2, name: 'アイデア', isHidden: false },
-    { id: 3, name: '秘密', isHidden: true }, // タイムラインに流さないタグ
+    { id: 3, name: '秘密', isHidden: true }, 
   ]);
-  const [selectedTags, setSelectedTags] = useState([]); // 書くタブで選択中のタグ
-  const [isTagMenuOpen, setIsTagMenuOpen] = useState(false); // タグ追加メニューの開閉
-  const [searchFilterTag, setSearchFilterTag] = useState(null); // 検索タブで絞り込み中のタグ
+  const [selectedTags, setSelectedTags] = useState([]); 
+  const [isTagMenuOpen, setIsTagMenuOpen] = useState(false); 
+  const [searchFilterTag, setSearchFilterTag] = useState(null); 
 
   useEffect(() => {
-    const closeMenu = () => setMenuOpenId(null);
+    const closeMenu = () => {
+      setMenuOpenId(null);
+      setTagMenuOpenId(null); // 画面のどこかを押したらタグメニューも閉じる
+    };
     window.addEventListener('click', closeMenu);
     return () => window.removeEventListener('click', closeMenu);
   }, []);
@@ -79,6 +83,19 @@ export default function MemoApp() {
   const togglePin = async (memo) => {
     await supabase.from('memos').update({ is_pinned: !memo.is_pinned }).eq('id', memo.id);
     fetchMemos();
+  };
+
+  // メモのタグを追加・削除する処理
+  const toggleMemoTag = async (memoId, currentTags, tagToToggle) => {
+    const tags = currentTags || [];
+    let newTags;
+    if (tags.includes(tagToToggle)) {
+      newTags = tags.filter(t => t !== tagToToggle); // すでにあれば削除
+    } else {
+      newTags = [...tags, tagToToggle]; // なければ追加
+    }
+    await supabase.from('memos').update({ tags: newTags }).eq('id', memoId);
+    fetchMemos(); // 画面を更新
   };
 
   // 編集した内容を保存する処理
@@ -231,17 +248,56 @@ export default function MemoApp() {
                         </button>
                       </div>
                       <div className="flex items-center gap-4 relative">
+                        {/* タグ管理ボタン＆メニュー */}
+                        <div className="relative">
+                          <button onClick={(e) => { e.stopPropagation(); setTagMenuOpenId(tagMenuOpenId === memo.id ? null : memo.id); setMenuOpenId(null); }} className={`${memo.tags && memo.tags.length > 0 ? 'text-emerald-500' : 'text-gray-200'} hover:text-emerald-500`}>
+                            <Icon type="tag" className="w-4 h-4" />
+                          </button>
+                          
+                          {/* タグ選択ポップアップ */}
+                          {tagMenuOpenId === memo.id && (
+                            <div className="absolute right-0 bottom-full mb-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-2 animate-in fade-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+                              <div className="px-4 pb-2 mb-1 border-b border-gray-50 flex justify-between items-center">
+                                <span className="text-[10px] text-gray-400 font-bold">タグの追加・削除</span>
+                              </div>
+                              <div className="max-h-48 overflow-y-auto">
+                                {availableTags.map(tag => {
+                                  const isSelected = memo.tags && memo.tags.includes(tag.name);
+                                  return (
+                                    <button
+                                      key={tag.id}
+                                      onClick={() => toggleMemoTag(memo.id, memo.tags, tag.name)}
+                                      className={`w-full text-left px-4 py-2 text-[11px] font-bold flex items-center justify-between ${isSelected ? 'bg-gray-50 text-gray-700' : 'text-gray-400 hover:bg-gray-50'}`}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Icon type="write" className="w-3 h-3 opacity-50" />
+                                        {tag.name}
+                                      </div>
+                                      {isSelected ? (
+                                        <span className="text-gray-400 border border-gray-200 bg-white rounded px-1.5 py-0.5 text-[9px] shadow-sm">ー</span>
+                                      ) : (
+                                        <span className="text-gray-300 text-[10px]">＋</span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* ピン留めボタン */}
                         <button onClick={() => togglePin(memo)} className={`${memo.is_pinned ? 'text-emerald-500' : 'text-gray-200'} hover:text-emerald-500`}>
                           <Icon type="pin" className="w-4 h-4" />
                         </button>
+                        
+                        {/* メニュー（編集・削除） */}
                         <div className="relative">
-                          <button onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === memo.id ? null : memo.id); }} className="text-gray-200 hover:text-gray-400">
+                          <button onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === memo.id ? null : memo.id); setTagMenuOpenId(null); }} className="text-gray-200 hover:text-gray-400">
                             <Icon type="more" className="w-4 h-4" />
                           </button>
                           {menuOpenId === memo.id && (
-                            /* top-full mt-2 でアイコンのすぐ下に出るように変更。z-50で最前面へ */
                             <div className="absolute right-0 top-full mt-2 w-28 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-1 animate-in fade-in zoom-in-95">
-                              {/* 編集ボタンを追加 */}
                               <button onClick={() => {setEditId(memo.id); setEditInput(memo.text);}} className="w-full text-left px-4 py-2.5 text-[11px] font-bold hover:bg-gray-50 text-gray-600 border-b border-gray-50">
                                 編集
                               </button>
@@ -282,20 +338,38 @@ export default function MemoApp() {
               ))}
             </div>
 
-            {/* メモ一覧（カード部分はタイムラインと同じ） */}
+            {/* メモ一覧（本文の下にタグ表示） */}
             <div className="space-y-4">
               {searchMemos.map((memo) => (
                 <div key={memo.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm relative flex flex-col">
                   <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl ${memo.color || 'bg-blue-300'}`} />
+                  
+                  {/* 本文エリア */}
                   <div className="flex-grow pb-2">
                     <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{memo.text}</p>
                   </div>
-                  {/* 付与されているタグの表示 */}
+
+                  {/* タグ表示エリア（本文のすぐ下） */}
                   {memo.tags && memo.tags.length > 0 && (
-                    <div className="flex gap-1 mt-2">
-                      {memo.tags.map(t => <span key={t} className="text-[9px] bg-gray-50 text-gray-400 px-2 py-0.5 rounded border border-gray-100">{t}</span>)}
+                    <div className="flex flex-wrap gap-1 mt-1 mb-2">
+                      {memo.tags.map(t => (
+                        <span key={t} className="text-[10px] bg-gray-50 text-gray-500 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
+                          <Icon type="tag" className="w-3 h-3 text-gray-300" />
+                          {t}
+                        </span>
+                      ))}
                     </div>
                   )}
+
+                  {/* アクションバー（日付やボタン） */}
+                  <div className="flex justify-between items-center mt-1 pt-2 border-t border-gray-50">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-gray-300 font-bold tracking-wider">
+                        {new Date(memo.date).toLocaleDateString()} {new Date(memo.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </span>
+                    </div>
+                    {/* ここにタイムラインと同じタグボタンを入れることも可能です（今回はスッキリさせています） */}
+                  </div>
                 </div>
               ))}
               {searchMemos.length === 0 && <p className="text-center text-xs text-gray-400 mt-10">メモがありません</p>}
