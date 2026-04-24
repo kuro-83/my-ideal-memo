@@ -42,6 +42,11 @@ export default function MemoApp() {
   const [selectedTags, setSelectedTags] = useState([]); 
   const [isTagMenuOpen, setIsTagMenuOpen] = useState(false); 
   const [searchFilterTag, setSearchFilterTag] = useState(null); 
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagIsHidden, setNewTagIsHidden] = useState(false);
+  const [editingTagId, setEditingTagId] = useState(null);
+  const [editingTagName, setEditingTagName] = useState("");
+  const [editingTagIsHidden, setEditingTagIsHidden] = useState(false);
 
   useEffect(() => {
     const closeMenu = () => {
@@ -103,6 +108,27 @@ export default function MemoApp() {
     await supabase.from('memos').update({ text: editInput }).eq('id', id);
     setEditId(null); // 編集モードを終了
     fetchMemos(); // 最新のデータを読み込む
+  };
+
+  // --- タグ管理機能 ---
+  const handleAddTag = () => {
+    if (!newTagName.trim()) return;
+    const newId = availableTags.length > 0 ? Math.max(...availableTags.map(t => t.id)) + 1 : 1;
+    setAvailableTags([...availableTags, { id: newId, name: newTagName, isHidden: newTagIsHidden }]);
+    setNewTagName("");
+    setNewTagIsHidden(false);
+  };
+
+  const handleDeleteTag = (id) => {
+    if (confirm("このタグをリストから削除しますか？\n（※すでにこのタグがついている過去のメモからタグが消えるわけではありません）")) {
+      setAvailableTags(availableTags.filter(t => t.id !== id));
+    }
+  };
+
+  const handleSaveEditTag = (id) => {
+    if (!editingTagName.trim()) return;
+    setAvailableTags(availableTags.map(t => t.id === id ? { ...t, name: editingTagName, isHidden: editingTagIsHidden } : t));
+    setEditingTagId(null);
   };
 
   const normalMemos = memos.filter(m => m.category === 'normal');
@@ -496,10 +522,67 @@ export default function MemoApp() {
 
         {/* --- ⚙️ 設定タブ --- */}
         {activeTab === 'settings' && (
-          <div className="animate-in fade-in space-y-4 text-center py-10">
-            <Icon type="settings" className="w-12 h-12 mx-auto text-gray-200 mb-4" />
-            <p className="text-sm text-gray-400 font-bold">Settings Area</p>
-            <p className="text-xs text-gray-300 px-10">色のカスタマイズやアカウント設定をここで行えるようにする予定です。</p>
+          <div className="animate-in fade-in space-y-6">
+            <div className="bg-white border border-gray-100 rounded-[24px] p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <Icon type="tag" className="w-5 h-5 text-emerald-500" />
+                タグの管理
+              </h2>
+
+              {/* 新規追加エリア */}
+              <div className="flex gap-2 mb-6 items-center">
+                <input 
+                  type="text" 
+                  value={newTagName} 
+                  onChange={(e) => setNewTagName(e.target.value)} 
+                  placeholder="新しいタグ名" 
+                  className="flex-grow bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                />
+                <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer font-bold">
+                  <input type="checkbox" checked={newTagIsHidden} onChange={(e) => setNewTagIsHidden(e.target.checked)} className="rounded text-emerald-500 focus:ring-emerald-500 border-gray-300 w-4 h-4" />
+                  秘密
+                </label>
+                <button onClick={handleAddTag} disabled={!newTagName.trim()} className="bg-emerald-400 text-white px-4 py-2.5 rounded-xl text-xs font-bold disabled:opacity-50 hover:bg-emerald-500 transition-colors shadow-sm">
+                  追加
+                </button>
+              </div>
+
+              {/* タグ一覧 */}
+              <div className="space-y-2">
+                {availableTags.map(tag => (
+                  <div key={tag.id} className="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
+                    {editingTagId === tag.id ? (
+                      <div className="flex flex-grow items-center gap-2">
+                        <input 
+                          type="text" 
+                          value={editingTagName} 
+                          onChange={(e) => setEditingTagName(e.target.value)} 
+                          className="flex-grow bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none"
+                        />
+                        <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer whitespace-nowrap font-bold">
+                          <input type="checkbox" checked={editingTagIsHidden} onChange={(e) => setEditingTagIsHidden(e.target.checked)} className="rounded text-emerald-500 focus:ring-emerald-500 border-gray-300 w-4 h-4" />
+                          秘密
+                        </label>
+                        <button onClick={() => handleSaveEditTag(tag.id)} className="text-xs text-emerald-500 font-bold px-2 hover:underline">保存</button>
+                        <button onClick={() => setEditingTagId(null)} className="text-xs text-gray-400 font-bold px-2 hover:underline">取消</button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-gray-700">{tag.name}</span>
+                          {tag.isHidden && <span className="text-[10px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded flex items-center gap-0.5 font-bold">🔒秘密</span>}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => { setEditingTagId(tag.id); setEditingTagName(tag.name); setEditingTagIsHidden(tag.isHidden); }} className="text-xs text-gray-400 hover:text-emerald-500 font-bold">編集</button>
+                          <button onClick={() => handleDeleteTag(tag.id)} className="text-xs text-gray-400 hover:text-red-500 font-bold">削除</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+                {availableTags.length === 0 && <p className="text-center text-xs text-gray-400 py-4">タグがありません</p>}
+              </div>
+            </div>
           </div>
         )}
       </main>
