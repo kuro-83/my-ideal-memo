@@ -338,38 +338,138 @@ export default function MemoApp() {
               ))}
             </div>
 
-            {/* メモ一覧（日付の右横にタグ表示） */}
+            {/* メモ一覧（検索結果：全機能入り） */}
             <div className="space-y-4">
-              {searchMemos.map((memo) => (
-                <div key={memo.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm relative flex flex-col">
-                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl ${memo.color || 'bg-blue-300'}`} />
-                  
-                  {/* 本文エリア */}
-                  <div className="flex-grow pb-4">
-                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{memo.text}</p>
-                  </div>
+              {searchMemos.map((memo) => {
+                const isExpanded = expandedIds.has(memo.id);
+                const shouldShowReadMore = memo.text.length > 100 || memo.text.split('\n').length > 3;
 
-                  {/* アクションバー（日付＋タグ） */}
-                  <div className="flex justify-between items-center mt-1 pt-2 border-t border-gray-50">
-                    <div className="flex items-center flex-wrap gap-2">
-                      <span className="text-[10px] text-gray-300 font-bold tracking-wider">
-                        {new Date(memo.date).toLocaleDateString()} {new Date(memo.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                      </span>
-                      {/* タグ表示エリア（日付の横） */}
-                      {memo.tags && memo.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 border-l border-gray-100 pl-2">
-                          {memo.tags.map(t => (
-                            <span key={t} className="text-[10px] bg-gray-50 text-gray-500 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
-                              <Icon type="tag" className="w-3 h-3 text-gray-300" />
-                              {t}
-                            </span>
-                          ))}
+                return (
+                  <div key={memo.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm relative flex flex-col">
+                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl ${memo.color || 'bg-blue-300'}`} />
+                    {memo.is_pinned && <div className="absolute top-0 right-0 p-2 text-emerald-500"><Icon type="pin" className="w-3 h-3 fill-current" /></div>}
+
+                    {/* 本文エリア：編集モードと通常表示を切り替え */}
+                    <div className="flex-grow pb-4">
+                      {editId === memo.id ? (
+                        <div className="mt-2">
+                          <textarea 
+                            className="w-full bg-gray-50 p-3 rounded-xl text-sm focus:ring-0 outline-none border border-gray-100 h-24" 
+                            value={editInput} 
+                            onChange={(e) => setEditInput(e.target.value)} 
+                          />
+                          <div className="flex justify-end gap-3 mt-2">
+                            <button onClick={() => setEditId(null)} className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Cancel</button>
+                            <button onClick={() => saveEdit(memo.id)} className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Save</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className={`text-sm text-gray-700 leading-relaxed whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
+                            {memo.text}
+                          </p>
+                          {shouldShowReadMore && (
+                            <button onClick={() => {const n=new Set(expandedIds); n.has(memo.id)?n.delete(memo.id):n.add(memo.id); setExpandedIds(n);}} className="text-xs text-emerald-500 font-bold mt-1 hover:underline">
+                              {isExpanded ? '閉じる' : '続きを読む'}
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
+
+                    {/* アクションバー（日付＋タグ ＆ 各種ボタン） */}
+                    <div className="flex justify-between items-center mt-1 pt-2 border-t border-gray-50">
+                      
+                      {/* 左側：日付、コピー、タグ */}
+                      <div className="flex items-center flex-wrap gap-2">
+                        <span className="text-[10px] text-gray-300 font-bold tracking-wider">
+                          {new Date(memo.date).toLocaleDateString()} {new Date(memo.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </span>
+                        
+                        {/* コピーボタン */}
+                        <button onClick={() => navigator.clipboard.writeText(memo.text)} className="text-gray-200 hover:text-emerald-500 transition-colors">
+                          <Icon type="copy" className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* タグ表示エリア（日付の横） */}
+                        {memo.tags && memo.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 border-l border-gray-100 pl-2">
+                            {memo.tags.map(t => (
+                              <span key={t} className="text-[10px] bg-gray-50 text-gray-500 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
+                                <Icon type="tag" className="w-3 h-3 text-gray-300" />
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 右側：タグ管理・ピン・メニュー（タイムラインと同じ） */}
+                      <div className="flex items-center gap-4 relative">
+                        {/* タグ管理ボタン＆メニュー */}
+                        <div className="relative">
+                          <button onClick={(e) => { e.stopPropagation(); setTagMenuOpenId(tagMenuOpenId === memo.id ? null : memo.id); setMenuOpenId(null); }} className={`${memo.tags && memo.tags.length > 0 ? 'text-emerald-500' : 'text-gray-200'} hover:text-emerald-500`}>
+                            <Icon type="tag" className="w-4 h-4" />
+                          </button>
+                          
+                          {/* タグ選択ポップアップ */}
+                          {tagMenuOpenId === memo.id && (
+                            <div className="absolute right-0 bottom-full mb-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-2 animate-in fade-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+                              <div className="px-4 pb-2 mb-1 border-b border-gray-50 flex justify-between items-center">
+                                <span className="text-[10px] text-gray-400 font-bold">タグの追加・削除</span>
+                              </div>
+                              <div className="max-h-48 overflow-y-auto">
+                                {availableTags.map(tag => {
+                                  const isSelected = memo.tags && memo.tags.includes(tag.name);
+                                  return (
+                                    <button
+                                      key={tag.id}
+                                      onClick={() => toggleMemoTag(memo.id, memo.tags, tag.name)}
+                                      className={`w-full text-left px-4 py-2 text-[11px] font-bold flex items-center justify-between ${isSelected ? 'bg-gray-50 text-gray-700' : 'text-gray-400 hover:bg-gray-50'}`}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Icon type="write" className="w-3 h-3 opacity-50" />
+                                        {tag.name}
+                                      </div>
+                                      {isSelected ? (
+                                        <span className="text-gray-400 border border-gray-200 bg-white rounded px-1.5 py-0.5 text-[9px] shadow-sm">ー</span>
+                                      ) : (
+                                        <span className="text-gray-300 text-[10px]">＋</span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* ピン留めボタン */}
+                        <button onClick={() => togglePin(memo)} className={`${memo.is_pinned ? 'text-emerald-500' : 'text-gray-200'} hover:text-emerald-500`}>
+                          <Icon type="pin" className="w-4 h-4" />
+                        </button>
+                        
+                        {/* メニュー（編集・削除） */}
+                        <div className="relative">
+                          <button onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === memo.id ? null : memo.id); setTagMenuOpenId(null); }} className="text-gray-200 hover:text-gray-400">
+                            <Icon type="more" className="w-4 h-4" />
+                          </button>
+                          {menuOpenId === memo.id && (
+                            <div className="absolute right-0 top-full mt-2 w-28 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-1 animate-in fade-in zoom-in-95">
+                              <button onClick={() => {setEditId(memo.id); setEditInput(memo.text);}} className="w-full text-left px-4 py-2.5 text-[11px] font-bold hover:bg-gray-50 text-gray-600 border-b border-gray-50">
+                                編集
+                              </button>
+                              <button onClick={() => deleteMemo(memo.id)} className="w-full text-left px-4 py-2.5 text-[11px] font-bold hover:bg-red-50 text-red-400">
+                                削除
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {searchMemos.length === 0 && <p className="text-center text-xs text-gray-400 mt-10">メモがありません</p>}
             </div>
           </div>
