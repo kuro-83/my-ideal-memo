@@ -338,37 +338,35 @@ export default function MemoApp() {
               ))}
             </div>
 
-            {/* メモ一覧（本文の下にタグ表示） */}
+            {/* メモ一覧（日付の右横にタグ表示） */}
             <div className="space-y-4">
               {searchMemos.map((memo) => (
                 <div key={memo.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm relative flex flex-col">
                   <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl ${memo.color || 'bg-blue-300'}`} />
                   
                   {/* 本文エリア */}
-                  <div className="flex-grow pb-2">
+                  <div className="flex-grow pb-4">
                     <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{memo.text}</p>
                   </div>
 
-                  {/* タグ表示エリア（本文のすぐ下） */}
-                  {memo.tags && memo.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1 mb-2">
-                      {memo.tags.map(t => (
-                        <span key={t} className="text-[10px] bg-gray-50 text-gray-500 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
-                          <Icon type="tag" className="w-3 h-3 text-gray-300" />
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* アクションバー（日付やボタン） */}
+                  {/* アクションバー（日付＋タグ） */}
                   <div className="flex justify-between items-center mt-1 pt-2 border-t border-gray-50">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center flex-wrap gap-2">
                       <span className="text-[10px] text-gray-300 font-bold tracking-wider">
                         {new Date(memo.date).toLocaleDateString()} {new Date(memo.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </span>
+                      {/* タグ表示エリア（日付の横） */}
+                      {memo.tags && memo.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 border-l border-gray-100 pl-2">
+                          {memo.tags.map(t => (
+                            <span key={t} className="text-[10px] bg-gray-50 text-gray-500 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
+                              <Icon type="tag" className="w-3 h-3 text-gray-300" />
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    {/* ここにタイムラインと同じタグボタンを入れることも可能です（今回はスッキリさせています） */}
                   </div>
                 </div>
               ))}
